@@ -3,7 +3,6 @@
 namespace PortableInfobox\Parser;
 
 use MediaWiki\MediaWikiServices;
-use PortableInfoboxUtils;
 
 class MediaWikiParserService implements ExternalParser {
 
@@ -20,7 +19,7 @@ class MediaWikiParserService implements ExternalParser {
 		$this->frame = $frame;
 
 		if ( $wgPortableInfoboxUseTidy && class_exists( '\MediaWiki\Tidy\RemexDriver' ) ) {
-			if ( version_compare( PortableInfoboxUtils::getMWVersion(), '1.36', '>=' ) ) {
+			if ( version_compare( MW_VERSION, '1.36', '>=' ) ) {
 				$this->tidyDriver = MediaWikiServices::getInstance()->getTidy();
 			} else {
 				$this->tidyDriver = \MWTidy::factory( [
@@ -48,8 +47,16 @@ class MediaWikiParserService implements ExternalParser {
 			//fix for first item list elements
 			$parsed = "\n" . $parsed;
 		}
-		$output = $this->parser->doBlockLevels( $parsed, false );
-		$ready = $this->parser->mStripState->unstripBoth( $output );
+		if  ( method_exists( '\BlockLevelPass', 'doBlockLevels' ) ) {
+			$output = \BlockLevelPass::doBlockLevels( $parsed, false );
+		} else {
+			$output = $this->parser->doBlockLevels( $parsed, false );
+		}
+		if  ( method_exists( '\Parser', 'getStripState' ) ) {
+			$ready = $this->parser->getStripState()->unstripBoth( $output );
+		} else {
+			$ready = $this->parser->mStripState->unstripBoth( $output );
+		}
 		$this->parser->replaceLinkHolders( $ready );
 		if ( isset( $this->tidyDriver ) ) {
 			$ready = $this->tidyDriver->tidy( $ready );
